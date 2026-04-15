@@ -22,7 +22,7 @@ def check_login():
         login_pwd = st.text_input("请输入登录密码", type="password")
 
         # 你自己设置的登录密码（可修改）
-        YOUR_LOGIN_PASSWORD = "Ai@2024666"
+        YOUR_LOGIN_PASSWORD = "Ai@2026666"
 
         if st.button("登录", type="primary"):
             if login_pwd == YOUR_LOGIN_PASSWORD:
