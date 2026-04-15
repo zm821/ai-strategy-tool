@@ -91,7 +91,7 @@ def read_file(file_bytes, filename):
 
 # ===================== 4. AI分析功能 =====================
 def analyze_with_ai(content, feedback=None):
-    system_prompt = """你是专业战略分析师，提取4类内容，每类≥20条，每类条数可以不一致，用英语简洁短句，严格返回JSON：
+    system_prompt = """你是专业战略分析师，提取4类内容，每类≥20条，每类条数可以不一致，用英语简洁短句，不允许有中文，严格返回JSON：
 {
     "战略目标2030": [],
     "年度目标2026": [],
