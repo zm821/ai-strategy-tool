@@ -43,14 +43,15 @@ st.set_page_config(page_title="AI战略分析工具", layout="wide")
 st.title("📊 AI战略分析表生成工具")
 
 # 优先从Streamlit Secrets读取密钥（部署用），也支持手动输入（本地用）
-with st.sidebar:
-    st.header("⚙️ API配置")
-    # 部署时把密钥填在Streamlit Secrets里，这里自动读取，不用手动输
-    default_key = st.secrets.get("API_KEY", "")
-    api_key = st.text_input("通义千问API密钥", value=default_key, type="password")
-    if not api_key:
-        st.warning("请输入API密钥后使用")
-        st.stop()
+# with st.sidebar:
+#     st.header("⚙️ API配置")
+#     # 部署时把密钥填在Streamlit Secrets里，这里自动读取，不用手动输
+#     default_key = st.secrets.get("API_KEY", "")
+#     api_key = st.text_input("通义千问API密钥", value=default_key, type="password")
+#     if not api_key:
+#         st.warning("请输入API密钥后使用")
+#         st.stop()
+api_key = st.secrets["API_KEY"]
 
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 MODEL_NAME = "qwen3-max"
