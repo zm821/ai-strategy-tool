@@ -18,7 +18,7 @@ def check_login():
 
     if not st.session_state["login_pass"]:
         st.set_page_config(page_title="AI战略分析工具", layout="centered")
-        st.title("🔒 AI战略分析工具 管理员登录")
+        st.title("🔒 AI战略分析工具 用户登录")
         login_pwd = st.text_input("请输入登录密码", type="password")
 
         # 你自己设置的登录密码（可修改）
