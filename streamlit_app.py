@@ -9,7 +9,7 @@ from openpyxl.styles import Alignment, Border, Side, Font
 from openpyxl.utils import get_column_letter
 from openai import OpenAI
 import datetime
-import pdfplumber
+
 
 # ===================== 1. 登录密码保护（第一道锁） =====================
 def check_login():
