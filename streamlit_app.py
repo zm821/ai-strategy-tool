@@ -18,7 +18,7 @@ def check_login():
 
     if not st.session_state["login_pass"]:
         st.set_page_config(page_title="AI战略分析工具", layout="centered")
-        st.title("🔒 AI战略分析工具 用户登录")
+        st.title("🔒 AI战略分析工具 管理员登录")
         login_pwd = st.text_input("请输入登录密码", type="password")
 
         # 你自己设置的登录密码（可修改）
@@ -105,11 +105,13 @@ def analyze_with_ai(content, feedback=None):
     for h in hist:
         messages.append({"role": h["role"], "content": h["text"]})
     # 拼接当前输入
+    # 有修改意见时：把【原始文档 + 修改要求】一起发给AI
     if feedback:
-        messages.append({"role": "user", "content": feedback})
+        combined_prompt = f"参考以下原始文档内容：\n{content}\n\n修改要求：{feedback}"
+        messages.append({"role": "user", "content": combined_prompt})
+    # 无修改意见时（首次生成）：只传文档内容
     else:
         messages.append({"role": "user", "content": content})
-
     client = OpenAI(api_key=api_key, base_url=BASE_URL)
     resp = client.chat.completions.create(
         model=MODEL_NAME,
@@ -205,9 +207,13 @@ def save_excel(data, base_name="分析结果"):
 
 
 # ===================== 6. 主界面 =====================
-# 初始化会话状态
+# 初始化会话状态（新增存储原始文档内容）
 if "current_session" not in st.session_state:
-    st.session_state["current_session"] = {"history": [], "last_data": None}
+    st.session_state["current_session"] = {
+        "history": [],
+        "last_data": None,
+        "original_content": ""  # 新增：永久保存上传的文档全文
+    }
 
 # 文件上传区
 st.subheader("📁 上传文件（支持多选：Word/PPT/PDF/Excel）")
@@ -228,6 +234,9 @@ if st.button("🚀 生成Excel", type="primary"):
             for f in uploaded_files:
                 all_content += f"\n===== 文件：{f.name} =====\n"
                 all_content += read_file(f, f.name)
+            # AI分析
+            # 保存原始文档全文（只在第一次生成时存储）
+            st.session_state["current_session"]["original_content"] = all_content
             # AI分析
             data = analyze_with_ai(all_content)
             st.session_state["current_session"]["last_data"] = data
@@ -255,7 +264,9 @@ if st.button("发送并重新生成Excel"):
             # 记录历史对话
             st.session_state["current_session"]["history"].append({"role": "user", "text": feedback})
             # AI重新生成
-            data = analyze_with_ai("", feedback=feedback)
+            # 读取保存的原始文档，结合修改意见一起发给AI
+            original_content = st.session_state["current_session"]["original_content"]
+            data = analyze_with_ai(original_content, feedback=feedback)
             st.session_state["current_session"]["last_data"] = data
             # 生成新Excel
             out_path = save_excel(data)
