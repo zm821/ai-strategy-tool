@@ -15,7 +15,7 @@ def check_login():
 
     if not st.session_state["login_pass"]:
         st.set_page_config(page_title="AI战略分析工具", layout="centered")
-        st.title("🔒 AI战略分析工具 用户登录")
+        st.title("🔒 AI战略分析工具 管理员登录")
         login_pwd = st.text_input("请输入登录密码", type="password")
         YOUR_LOGIN_PASSWORD = "Ai@2026666"
 
@@ -218,15 +218,16 @@ if "current_session" not in st.session_state:
     st.session_state["current_session"] = {"history": [], "last_data": None, "original_content": ""}
 
 st.subheader("📁 上传文件（全部由AI识别提取）")
-uploaded = st.file_uploader(["docx","pptx","pdf","xlsx","xls"], accept_multiple_files=True)
+# 🔥 修复这里：补全 label + type 参数
+uploaded_files = st.file_uploader("选择文件", type=["docx","pptx","pdf","xlsx","xls"], accept_multiple_files=True)
 
 if st.button("🚀 生成Excel", type="primary"):
-    if not uploaded:
+    if not uploaded_files:
         st.warning("请上传文件")
     else:
         with st.spinner("AI正在全量提取文档内容..."):
             all_text = ""
-            for f in uploaded:
+            for f in uploaded_files:
                 all_text += extract_content_by_ai(f.getbuffer(), f.name) + "\n\n"
 
             st.session_state["current_session"]["original_content"] = all_text
