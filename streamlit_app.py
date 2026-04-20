@@ -9,7 +9,7 @@ from openpyxl.styles import Alignment, Border, Side, Font
 from openpyxl.utils import get_column_letter
 from openai import OpenAI
 import datetime
-
+import pdfplumber
 
 # ===================== 1. 登录密码保护（第一道锁） =====================
 def check_login():
@@ -72,11 +72,13 @@ def read_file(file_bytes, filename):
                     if hasattr(shape, "text"):
                         content += shape.text + "\n"
         elif ext == ".pdf":
-            reader = PyPDF2.PdfReader(file_bytes)
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    content += page_text + "\n"
+            import pdfplumber
+            with pdfplumber.open(file_bytes) as pdf:
+                for page in pdf.pages:
+                # 按位置智能排序，解决分栏、错位问题
+                    text = page.extract_text(x_tolerance=2, y_tolerance=5)
+                    if text:
+                        content += text + "\n\n"
         elif ext in [".xlsx", ".xls"]:
             from openpyxl import load_workbook
             wb = load_workbook(file_bytes, read_only=True)
