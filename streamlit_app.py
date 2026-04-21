@@ -162,6 +162,56 @@ def read_file(file_bytes, filename):
 
     return content
 
+
+# ===================== 【新增】4. 战略条目相关性判断核心函数 =====================
+def get_correlation_matrix(row_items, col_items):
+    """
+    行条目：主要改进事项 + 战略目标2030（Excel行维度）
+    列条目：年度目标2026 + 改进指标（Excel列维度）
+    AI自动判断每对条目是否强相关，返回需要打勾的(行索引, 列索引)列表
+    """
+    # 无条目直接返回空，避免报错
+    if not row_items or not col_items:
+        return []
+    
+    # 整理AI输入内容，带索引标记
+    row_texts = [f"【行{i}】{item['text']}" for i, item in enumerate(row_items)]
+    col_texts = [f"【列{j}】{item['text']}" for j, item in enumerate(col_items)]
+    
+    # 精准prompt，严格约束输出格式
+    system_prompt = """你是专业的战略规划分析师，精准判断行条目和列条目之间的业务相关性。
+判断规则：
+1. 仅当行条目和列条目存在**直接、强业务关联、因果支撑关系、落地对应关系**时，才判定为强相关。
+2. 弱相关、间接关联、无关联的条目，一律不判定。
+3. 严格返回JSON格式，结构固定为：{"correlations": [[行索引, 列索引], [行索引, 列索引], ...]}
+4. 只返回符合强相关的索引对，禁止额外解释、多余内容。
+"""
+    user_prompt = f"""
+所有行维度条目（主要改进事项+战略目标）：
+{chr(10).join(row_texts)}
+
+所有列维度条目（年度目标+改进指标）：
+{chr(10).join(col_texts)}
+
+请严格按照规则，返回强相关的行索引和列索引对。
+"""
+    try:
+        client = OpenAI(api_key=api_key, base_url=BASE_URL)
+        resp = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1  # 低温保证判断稳定一致
+        )
+        result = json.loads(resp.choices[0].message.content)
+        return result.get("correlations", [])
+    except Exception as e:
+        st.error(f"相关性自动判断失败：{str(e)}，已跳过打勾步骤")
+        return []
+
 # ===================== 4. AI分析功能 =====================
 def analyze_with_ai(content, feedback=None):
     system_prompt = """你是专业战略分析师，提取4类内容，其中战略目标3-6条，年度目标8-12条，主要改进事项15-20条，改进指标≥20条，用中文简洁短句，严格返回JSON：
@@ -207,31 +257,59 @@ def save_excel(data, base_name="分析结果"):
     CR, CC = 30, 30
     ws.cell(CR, CC, value="年度目标2026")
 
-    # 填充四个方向的内容
-    # 上：主要改进事项
-    items = data.get("主要改进事项", [])
+       # ========== 修改点1：填充四个方向时，记录条目坐标与内容，用于后续相关性判断 ==========
+    row_items = []  # 行维度：主要改进事项(上) + 战略目标2030(下)
+    col_items = []  # 列维度：年度目标2026(左) + 改进指标(右)
+
+    # 上：主要改进事项（行维度，从上到下排列）
+    items = data.get("主要改进事项", [])[:25]  # 与原代码截断逻辑保持一致
     r, c = CR - 1, CC
-    for x in items[:25]:
-        ws.cell(r, c, x).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    for idx, x in enumerate(items):
+        cell = ws.cell(r, c, x)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        row_items.append({"text": x, "row": r})  # 记录行号与内容
         r -= 1
-    # 左：年度目标2026
-    items = data.get("年度目标2026", [])
-    r, c = CR, CC - 1
-    for x in items[:25]:
-        ws.cell(r, c, x).alignment = Alignment(textRotation=90, horizontal='center', vertical='center')
-        c -= 1
-    # 下：战略目标2030
-    items = data.get("战略目标2030", [])
+
+    # 下：战略目标2030（行维度，追加到行条目列表）
+    items = data.get("战略目标2030", [])[:25]
     r, c = CR + 1, CC
-    for x in items[:25]:
-        ws.cell(r, c, x).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    for idx, x in enumerate(items):
+        cell = ws.cell(r, c, x)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        row_items.append({"text": x, "row": r})  # 记录行号与内容
         r += 1
-    # 右：改进指标
-    items = data.get("改进指标", [])
+
+    # 左：年度目标2026（列维度，从右到左排列）
+    items = data.get("年度目标2026", [])[:25]
+    r, c = CR, CC - 1
+    for idx, x in enumerate(items):
+        cell = ws.cell(r, c, x)
+        cell.alignment = Alignment(textRotation=90, horizontal='center', vertical='center')
+        col_items.append({"text": x, "col": c})  # 记录列号与内容
+        c -= 1
+
+    # 右：改进指标（列维度，追加到列条目列表）
+    items = data.get("改进指标", [])[:25]
     r, c = CR, CC + 1
-    for x in items[:25]:
-        ws.cell(r, c, x).alignment = Alignment(textRotation=90, horizontal='center', vertical='center')
+    for idx, x in enumerate(items):
+        cell = ws.cell(r, c, x)
+        cell.alignment = Alignment(textRotation=90, horizontal='center', vertical='center')
+        col_items.append({"text": x, "col": c})  # 记录列号与内容
         c += 1
+
+    # ========== 修改点2：调用AI相关性判断，自动打勾 ==========
+    if row_items and col_items:
+        correlations = get_correlation_matrix(row_items, col_items)
+        # 填充打勾单元格
+        for row_idx, col_idx in correlations:
+            # 索引合法性校验，避免越界报错
+            if 0 <= row_idx < len(row_items) and 0 <= col_idx < len(col_items):
+                target_row = row_items[row_idx]["row"]
+                target_col = col_items[col_idx]["col"]
+                check_cell = ws.cell(target_row, target_col, "√")
+                # 打勾样式：红色加粗居中，更醒目
+                check_cell.alignment = Alignment(horizontal='center', vertical='center')
+                check_cell.font = Font(name="宋体", size=11, bold=True, color="FF0000")
 
     # 清理空行空列
     for r in range(ws.max_row, 0, -1):
@@ -267,12 +345,14 @@ def save_excel(data, base_name="分析结果"):
         ws.column_dimensions[get_column_letter(c)].width = 3
     ws.column_dimensions[get_column_letter(ac)].width = 50
 
-    # 统一边框字体
+    # 统一设置所有单元格的边框和字体（包含打勾的单元格）
     for r in range(1, ws.max_row + 1):
         for c in range(1, ws.max_column + 1):
             cell = ws.cell(r, c)
             cell.border = border
-            cell.font = font
+            # 保留打勾单元格的特殊字体，其他单元格用默认字体
+            if cell.value != "√":
+                cell.font = font
 
     wb.save(out)
     return out
